@@ -1,0 +1,200 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport"
+          content="width=device-width, user-scalable=no, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>Document</title>
+</head>
+<style>
+    body {
+        font-family: sans-serif;
+    }
+
+    form {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+        margin-bottom: 20px;
+    }
+
+    label {
+        margin-top: 10px;
+    }
+
+    input,
+    select {
+        margin-left: 10px;
+    }
+
+    button {
+        margin-top: 20px;
+        padding: 10px 20px;
+        cursor: pointer;
+    }
+
+    table {
+        border-collapse: collapse;
+    }
+
+    th,
+    td {
+        border: 1px solid #ddd;
+        padding: 8px;
+    }
+
+    tr:nth-child(even) {
+        background-color: #f2f2f2;
+    }
+
+    th {
+        background-color: #4caf50;
+        color: white;
+    }
+
+</style>
+<body>
+<form id="loan-form">
+    <label for="loan-amount">Сумма кредита:</label>
+    <input type="number" id="loan-amount" name="loanAmount" required />
+
+    <label for="term-in-months">Срок (в месяцах):</label>
+    <input type="number" id="term-in-months" name="termInMonths" required />
+
+    <label for="interest-rate">Процентная ставка:</label>
+    <input type="number" id="interest-rate" name="interestRate" required />
+
+    <label for="payment-day-of-month">День месяца для платежа:</label>
+    <input type="number" id="payment-day-of-month" name="paymentDayOfMonth" required />
+
+    <label for="payment-type">Тип графика:</label>
+    <select id="payment-type" name="paymentType">
+        <option value="annuity">Аннуитетный</option>
+        <option value="differentiated">Дифференцированный</option>
+    </select>
+    <button type="submit">Рассчитать</button>
+</form>
+<table id="payment-schedule">
+    <thead>
+    <tr>
+        <th>Дата</th>
+        <th>Сумма платежа</th>
+        <th>Платеж по основному долгу</th>
+        <th>Платеж по процентам</th>
+        <th>Остаток основного долга</th>
+    </tr>
+    </thead>
+    <tbody></tbody>
+</table>
+<script>
+    function calculatePaymentSchedule(
+        loanAmount,
+        termInMonths,
+        interestRate,
+        paymentDayOfMonth,
+        paymentType
+    ) {
+        const monthlyInterestRate = interestRate / 12 / 100;
+        let balance = loanAmount;
+
+        // Список праздничных дней в формате 'ММ-ДД'
+        const holidays = ['01-01', '01-07', '02-23', '03-08', '05-01', '05-09', '06-12', '11-04'];
+
+        const paymentSchedule = Array.from({ length: termInMonths }, (_, i) => {
+            let paymentDate = new Date();
+            paymentDate.setMonth(paymentDate.getMonth() + i);
+            paymentDate.setDate(paymentDayOfMonth);
+
+            // Если платеж попадает на выходной или праздничный день, переносим его на следующий рабочий день
+            while (
+                paymentDate.getDay() === 0 ||
+                paymentDate.getDay() === 6 ||
+                holidays.includes(paymentDate.toLocaleDateString('en-US', { month: '2-digit', day: '2-digit' }))
+                ) {
+                paymentDate.setDate(paymentDate.getDate() + 1);
+            }
+
+            let interestPayment = balance * monthlyInterestRate;
+            let principalPayment, totalPayment;
+
+            if (paymentType === 'annuity') {
+                totalPayment =
+                    loanAmount * (monthlyInterestRate / (1 - Math.pow(1 + monthlyInterestRate, -termInMonths)));
+                principalPayment = totalPayment - interestPayment;
+            } else if (paymentType === 'differentiated') {
+                principalPayment = loanAmount / termInMonths;
+                totalPayment = principalPayment + interestPayment;
+            }
+
+            balance -= principalPayment;
+
+            return {
+                date: paymentDate.toLocaleDateString(),
+                totalPayment: totalPayment.toFixed(2),
+                principalPayment: principalPayment.toFixed(2),
+                interestPayment: interestPayment.toFixed(2),
+                balance: balance.toFixed(2),
+            };
+        });
+
+        return paymentSchedule;
+    }
+
+    document.querySelector('#loan-form').addEventListener('submit', (event) => {
+        event.preventDefault();
+
+        const formData = new FormData(event.target);
+        const loanAmount = formData.get('loanAmount');
+        const termInMonths = formData.get('termInMonths');
+        const interestRate = formData.get('interestRate');
+        const paymentDayOfMonth = formData.get('paymentDayOfMonth');
+        const paymentType = formData.get('paymentType');
+
+        const result = calculatePaymentSchedule(
+            loanAmount,
+            termInMonths,
+            interestRate,
+            paymentDayOfMonth,
+            paymentType
+        );
+
+
+        document.querySelector('#loan-form').addEventListener('submit', (event) => {
+            event.preventDefault();
+
+            const formData = new FormData(event.target);
+            const loanAmount = formData.get('loanAmount');
+            const termInMonths = formData.get('termInMonths');
+            const interestRate = formData.get('interestRate');
+            const paymentDayOfMonth = formData.get('paymentDayOfMonth');
+            const paymentType = formData.get('paymentType');
+
+            const result = calculatePaymentSchedule(
+                loanAmount,
+                termInMonths,
+                interestRate,
+                paymentDayOfMonth,
+                paymentType
+            );
+
+            const tableBody = document.querySelector('#payment-schedule tbody');
+            tableBody.innerHTML = '';
+
+            result.forEach((payment) => {
+                const row = document.createElement('tr');
+
+                Object.values(payment).forEach((value) => {
+                    const cell = document.createElement('td');
+                    cell.textContent = value;
+                    row.appendChild(cell);
+                });
+
+                tableBody.appendChild(row);
+            });
+        })
+    })
+
+</script>
+</body>
+</html>
